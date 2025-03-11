@@ -1,3 +1,6 @@
+library(missMDA)
+library(irlba)
+library(Matrix)
 ratings.train <- read.csv("ratings_train.csv", header=TRUE) 
 ratings.test <- read.csv("ratings_test.csv", header=TRUE)
 movies<- read.csv("movies.csv", header=TRUE)
@@ -60,7 +63,7 @@ meanratings=meanratings[-rem2,]#removing unrated movies
 
 p=prcomp(meanratings, center=TRUE, scale=TRUE)#pca
 eigvs=p$sdev^2
-plot(1:length(eigvs), eigvs/sum(eigvs)*100, ylab="Propotion of variance explained", xlab='component number')#screeplot
+plot(1:length(eigvs), eigvs/sum(eigvs), ylab="Propotion of variance explained", xlab='component number')#screeplot
 plot(p$rotation[1,],p$rotation[2,])
 
 #variance of each movie
@@ -220,3 +223,41 @@ for (i in 1:18){
   plot(c(1:sum(!is.na(usergenratings[i,]))),na.omit(usergenratings[i,]))
 }
 
+#justratings has unrated movies, removing
+moviesusersrated=movieratings[,-c(2:19)]
+remid=rem+1
+moviesusersrated=moviesusersrated[,-remid[2:length(remid)]]
+moviesusersrated=moviesusersrated[-rem2,]
+
+
+#plotting means of user vs movies to see which varies more
+userrs=colMeans(moviesusersrated,na.rm=TRUE)#users
+moviess=rowMeans(moviesusersrated,na.rm=TRUE)#movies
+plot(c(2:length(userrs)),userrs[2:length(userrs)])
+plot(c(2:length(moviess)),moviess[2:length(moviess)])#users plot has higher variance, users-based better?
+
+
+#sparse matrix, so iterative PCA with missMDA package, regularised to avoid overfitting
+#sparsity causing problems
+threshold=20
+thresholdc=ncol(moviesusersrated)-threshold
+reducedmoviesusersrated <- moviesusersrated[rowSums(is.na(moviesusersrated)) < thresholdc, ]
+thresholdr=nrow(reducedmoviesusersrated)-threshold
+reducedmoviesusersrated <- reducedmoviesusersrated[, colSums(is.na(reducedmoviesusersrated)) < thresholdr]
+redmovu=reducedmoviesusersrated[,-1]
+rownames(redmovu)=reducedmoviesusersrated[,1]
+#reduced to 22by20 matrix
+pcareducedmovies=prcomp_irlba(redmovu)
+screeplot(pcareducedmovies, type="lines")
+#strongest correlations with PC1 are "Amateur (1994)", "Go Fish (1994)"(NEGATIVE), "Super Mario Bros (1993)" (NEGATIVE), "Horseman on the Roof , The (Hussard sur le toit, Le) (1995)"
+#try on transpose?
+tpcareducedmovies=prcomp_irlba(t(redmovu))
+screeplot(tpcareducedmovies)#correlations all similar with 1st PC
+
+
+#transformations of time
+times=ratings.train$timestamp
+timehrs=floor(ratings.train$timestamp/3600)
+timehrs=timehrs%%24
+plot(timehrs,ratings.train$rating)
+timelhrs=lm(timehrs~ ratings.train$rating)
