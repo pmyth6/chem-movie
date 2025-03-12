@@ -228,13 +228,13 @@ moviesusersrated=movieratings[,-c(2:19)]
 remid=rem+1
 moviesusersrated=moviesusersrated[,-remid[2:length(remid)]]
 moviesusersrated=moviesusersrated[-rem2,]
-
+movunoid=moviesusersrated[,-1]
 
 #plotting means of user vs movies to see which varies more
-userrs=colMeans(moviesusersrated,na.rm=TRUE)#users
-moviess=rowMeans(moviesusersrated,na.rm=TRUE)#movies
+userrs=colMeans(movunoid,na.rm=TRUE)#users
+moviess=rowMeans(movunoid,na.rm=TRUE)#movies
 plot(c(2:length(userrs)),userrs[2:length(userrs)])
-plot(c(2:length(moviess)),moviess[2:length(moviess)])#users plot has higher variance, users-based better?
+plot(c(2:671),moviess[2:671])#users plot has higher variance, users-based better?
 
 
 #sparse matrix, so iterative PCA with missMDA package, regularised to avoid overfitting
