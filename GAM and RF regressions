@@ -1,0 +1,80 @@
+#install packages and load libraries 
+
+install.packages("randomForest")
+library("randomForest")
+library(caret)
+install.packages("mgcv")
+library(gam)
+install.packages("cv")
+library(cv)
+
+#load data 
+training.data <- read.csv("training_set.csv", header=TRUE)
+test.data <- read.csv("test_set.csv", header=TRUE)
+#remove the percentages from data
+training = training.data[,-1]
+
+#put the data in the right format 
+training$Impurity.Type <- as.factor(training$Impurity.Type)
+
+##randon forest model 
+#create model
+rf = randomForest(Impurity.Percent~I+II+III+IV+V+Temp, data = training.data, ntree = 500)
+
+#analysis
+rf$importance
+plot(rf)
+
+
+##GAM model 
+mod_gam2 = gam(Impurity.Percent ~ s(I)+s(II)+s(III)+s(IV)+s(V)+s(Temp), data = training.data)
+summary(mod_gam2)
+
+###cross validation
+
+set.seed(123)
+
+#empty vectors for results 
+rf_results = numeric(nrow(training.data))
+gam_results = numeric(nrow(training.data))
+
+for(i in 1:nrow(training.data)) {
+
+#training and test sets
+test_set = training.data[i, , ]
+train_set = training.data[-i, ]
+
+#rf
+rf_model = randomForest(Impurity.Percent ~ I + II + III + IV + V + Temp, data = train_set, ntree = 500)
+
+#rf preditions
+rf_predictions = predict(rf_model, test_set)
+
+# RMSE calc
+rf_rmse = sqrt(mean((rf_predictions - test_set$Impurity.Percent)^2))
+rf_results[i] = rf_rmse
+
+# GAM
+gam_model = gam(Impurity.Percent ~ s(I) + s(II) + s(III) + s(IV) + s(V) + s(Temp), data = train_set)
+
+# gam predictions
+gam_predictions = predict(gam_model, test_set)
+
+#  RMSE GAM 
+gam_rmse = sqrt(mean((gam_predictions - test_set$Impurity.Percent)^2))
+gam_results[i] = gam_rmse
+}
+
+
+rf.mean = mean(rf_results)
+rf.sd = sd(rf_results)
+
+gam.mean = mean(gam_results)
+gam.sd = sd(gam_results)
+
+##gam has a lower mean and variance so we assume this fits the model slightly better. 
+
+
+###GAM test predictions
+predictions.percent = predict(mod_gam2, test.data)
+
